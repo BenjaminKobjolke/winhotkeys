@@ -11,6 +11,17 @@ import win32api
 import win32gui
 import sys
 
+# Import key mappings from keycodes module
+try:
+    from .keycodes import vk_key_names
+except ImportError:
+    # For direct imports or testing
+    try:
+        from keycodes import vk_key_names
+    except ImportError:
+        # Define a minimal set of key mappings if keycodes.py is not available
+        vk_key_names = {}
+
 # Windows message constants
 WM_HOTKEY = 0x0312
 WM_CLOSE = 0x0010  # Standard Windows close message
@@ -198,17 +209,27 @@ class HotkeyManager:
             modifiers |= MOD_NOREPEAT
                 
         # Process main key
-        # Try to get from keycodes module first
-        try:
-            from .keycodes import vk_key_names
-            if main_key in vk_key_names:
-                vk_code = vk_key_names[main_key]
-            else:
-                # Try common mappings
-                vk_code = self._get_vk_code(main_key)
-        except ImportError:
-            # Fall back to common mappings
-            vk_code = self._get_vk_code(main_key)
+        # First check if it's a single character that we can get the VK code for at runtime
+        if len(main_key) == 1:
+            try:
+                # Get the VK code for the character in the current keyboard layout
+                vk_code = ctypes.windll.user32.VkKeyScanW(ord(main_key)) & 0xFF
+                print(f"DEBUG: Got VK code for '{main_key}' at runtime: {vk_code} (0x{vk_code:x})")
+            except Exception as e:
+                print(f"Error getting VK code for '{main_key}' at runtime: {e}")
+                # Fall back to the dictionary
+                vk_code = vk_key_names.get(main_key)
+        else:
+            # Use the imported vk_key_names dictionary for named keys
+            vk_code = vk_key_names.get(main_key)
+        
+        # Debug output to verify the parsed values
+        print(f"DEBUG: Parsed hotkey combination: '{hotkey_combination}'")
+        print(f"DEBUG: Main key: '{main_key}', Modifiers: {modifier_keys}")
+        if vk_code is not None:
+            print(f"DEBUG: VK code: {vk_code} (0x{vk_code:x}), Modifiers: {modifiers} (0x{modifiers:x})")
+        else:
+            print(f"DEBUG: VK code: None (0x0), Modifiers: {modifiers} (0x{modifiers:x})")
             
         return modifiers, vk_code
 
@@ -222,77 +243,8 @@ class HotkeyManager:
         Returns:
             Virtual key code or None if not found
         """
-        # Common key mappings
-        key_map = {
-            'enter': win32con.VK_RETURN,
-            'space': win32con.VK_SPACE,
-            'tab': win32con.VK_TAB,
-            'escape': win32con.VK_ESCAPE,
-            'esc': win32con.VK_ESCAPE,
-            'backspace': win32con.VK_BACK,
-            'delete': win32con.VK_DELETE,
-            'del': win32con.VK_DELETE,
-            'insert': win32con.VK_INSERT,
-            'ins': win32con.VK_INSERT,
-            'home': win32con.VK_HOME,
-            'end': win32con.VK_END,
-            'pageup': win32con.VK_PRIOR,
-            'pagedown': win32con.VK_NEXT,
-            'up': win32con.VK_UP,
-            'down': win32con.VK_DOWN,
-            'left': win32con.VK_LEFT,
-            'right': win32con.VK_RIGHT,
-            'f1': win32con.VK_F1,
-            'f2': win32con.VK_F2,
-            'f3': win32con.VK_F3,
-            'f4': win32con.VK_F4,
-            'f5': win32con.VK_F5,
-            'f6': win32con.VK_F6,
-            'f7': win32con.VK_F7,
-            'f8': win32con.VK_F8,
-            'f9': win32con.VK_F9,
-            'f10': win32con.VK_F10,
-            'f11': win32con.VK_F11,
-            'f12': win32con.VK_F12,
-            '0': 0x30,
-            '1': 0x31,
-            '2': 0x32,
-            '3': 0x33,
-            '4': 0x34,
-            '5': 0x35,
-            '6': 0x36,
-            '7': 0x37,
-            '8': 0x38,
-            '9': 0x39,
-            'a': 0x41,
-            'b': 0x42,
-            'c': 0x43,
-            'd': 0x44,
-            'e': 0x45,
-            'f': 0x46,
-            'g': 0x47,
-            'h': 0x48,
-            'i': 0x49,
-            'j': 0x4A,
-            'k': 0x4B,
-            'l': 0x4C,
-            'm': 0x4D,
-            'n': 0x4E,
-            'o': 0x4F,
-            'p': 0x50,
-            'q': 0x51,
-            'r': 0x52,
-            's': 0x53,
-            't': 0x54,
-            'u': 0x55,
-            'v': 0x56,
-            'w': 0x57,
-            'x': 0x58,
-            'y': 0x59,
-            'z': 0x5A,
-        }
-        
-        return key_map.get(key.lower())
+        # Use the imported vk_key_names dictionary
+        return vk_key_names.get(key.lower())
 
     def start_listening(self) -> None:
         """Start listening for registered hotkeys."""
@@ -357,57 +309,56 @@ class HotkeyManager:
                         # Print detailed information about the hotkey being registered
                         print(f"Registering hotkey ID {hotkey_id}: modifiers={details['modifiers']}, vk_code={details['vk_code']} ({details['combination']})")
                         
-                        # Try to unregister the hotkey first in case it's already registered
-                        try:
-                            win32gui.UnregisterHotKey(self.hwnd, hotkey_id)
-                            print(f"Unregistered existing hotkey ID {hotkey_id} ({details['combination']})")
-                        except win32gui.error:
-                            # Ignore errors when unregistering, as the hotkey might not be registered yet
-                            pass
+                        # Skip the unregistration step for the first registration
+                        # This avoids the "Hot key is not registered" error
+                        print(f"Registering hotkey ID {hotkey_id} ({details['combination']}) for the first time.")
                         
-                        # Now register the hotkey
+                        # Now register the hotkey with improved error handling
                         try:
-                            result = win32gui.RegisterHotKey(
+                            success = win32gui.RegisterHotKey(
                                 self.hwnd,
                                 hotkey_id,
                                 details['modifiers'],
                                 details['vk_code']
                             )
                             
-                            if result:
+                            # Print the return value and last error for debugging
+                            last_error = ctypes.GetLastError()
+                            print(f"RegisterHotKey→ {success}, GetLastError→ {last_error}")
+                            
+                            # In pywin32, RegisterHotKey might return None even on success
+                            # So we check the last error code instead
+                            if last_error == 0:
                                 print(f"Successfully registered hotkey ID {hotkey_id} ({details['combination']})")
                             else:
-                                error_code = ctypes.get_last_error()
-                                # Only report as an error if the error code is not 0
-                                if error_code != 0:
-                                    print(f"Failed to register hotkey ID {hotkey_id} ({details['combination']}), error code: {error_code}")
-                                    
-                                    # Try to get a more detailed error message
-                                    try:
-                                        error_message = ctypes.FormatError(error_code)
-                                        print(f"Error message: {error_message}")
-                                    except Exception as format_error:
-                                        print(f"Error getting error message: {format_error}")
-                                else:
-                                    # Error code 0 means success, so this is not actually an error
-                                    print(f"Successfully registered hotkey ID {hotkey_id} ({details['combination']})")
+                                error_message = f"RegisterHotKey failed (0x{last_error:08X}): {ctypes.FormatError(last_error)}"
+                                print(f"Failed to register hotkey ID {hotkey_id} ({details['combination']}): {error_message}")
+                                # Don't raise an exception, just log the error and continue
+                                print(f"Will attempt to use the hotkey anyway.")
                         except win32gui.error as win_error:
                             # Check if the error is "Hot key is already registered" (error code 1409)
                             if win_error.winerror == 1409:
                                 print(f"Hotkey ID {hotkey_id} ({details['combination']}) is already registered. This is normal if the application was not closed properly previously.")
-                                # Try to unregister and register again
+                                # Try to unregister and register again with improved error handling
                                 try:
                                     win32gui.UnregisterHotKey(self.hwnd, hotkey_id)
-                                    result = win32gui.RegisterHotKey(
+                                    success = win32gui.RegisterHotKey(
                                         self.hwnd,
                                         hotkey_id,
                                         details['modifiers'],
                                         details['vk_code']
                                     )
-                                    if result:
+                                    if success:
                                         print(f"Successfully re-registered hotkey ID {hotkey_id} ({details['combination']})")
                                     else:
-                                        print(f"Failed to re-register hotkey ID {hotkey_id} ({details['combination']})")
+                                        err = ctypes.GetLastError()
+                                        if err != 0:  # Only report as an error if the error code is not 0
+                                            error_message = f"Re-RegisterHotKey failed (0x{err:08X}): {ctypes.FormatError(err)}"
+                                            print(f"Failed to re-register hotkey ID {hotkey_id} ({details['combination']}): {error_message}")
+                                            raise OSError(error_message)
+                                        else:
+                                            # Error code 0 means success, so this is not actually an error
+                                            print(f"Successfully re-registered hotkey ID {hotkey_id} ({details['combination']})")
                                 except Exception as e:
                                     print(f"Error re-registering hotkey ID {hotkey_id}: {e}")
                                     print(f"Will attempt to use the hotkey anyway.")

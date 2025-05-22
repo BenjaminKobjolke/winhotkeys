@@ -38,7 +38,7 @@ def main():
     
     # Create hotkey handlers
     print("Creating hotkey handlers...")
-    hotkey1 = HotkeyHandler("control+alt+1", on_hotkey1_pressed, suppress=True)
+    hotkey1 = HotkeyHandler("alt+ctrl+1", on_hotkey1_pressed, suppress=True)
     hotkey2 = HotkeyHandler("control+alt+2", on_hotkey2_pressed, suppress=True)
     
     # Start listening for hotkeys

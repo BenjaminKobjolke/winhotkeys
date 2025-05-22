@@ -160,7 +160,10 @@ vk_key_names = {
     '`': 0xC0,
     ';': 0xBA,
     '[': 0xDB,
-    '\\': 0xDC,
+    '\\': 0xDC,  # US backslash key (VK_OEM_5)
+    'backslash': 0xDC,  # US backslash key (VK_OEM_5)
+    'oem_5': 0xDC,  # US backslash key
+    'oem_102': 0xE2,  # Non-US backslash key (VK_OEM_102)
     ']': 0xDD,
     "'": 0xDE,
 }
