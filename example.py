@@ -1,21 +1,35 @@
 """
 Example script demonstrating how to use the WinHotkeys library.
 """
-# Use relative import when running from within the package directory
+# Import directly from the local module
 try:
     from winhotkeys import HotkeyHandler
 except ImportError:
-    # If that fails, try a relative import
-    from . import HotkeyHandler
+    # If that fails, try a direct import from the local file
+    from hotkey import HotkeyHandler
 import time
 
 def on_hotkey1_pressed():
     """Callback function for the first hotkey."""
-    print("\nHotkey 1 (Ctrl+Alt+1) was pressed!")
+    print("\n" * 50)  # Print many newlines to make the output more visible
+    print("*" * 50)
+    print("*" * 5 + " HOTKEY 1 WAS PRESSED! " + "*" * 5)
+    print("*" * 50)
+    print("\n" * 5)
+    # Force flush the output to ensure it's displayed immediately
+    import sys
+    sys.stdout.flush()
 
 def on_hotkey2_pressed():
     """Callback function for the second hotkey."""
-    print("\nHotkey 2 (Ctrl+Alt+2) was pressed!")
+    print("\n" * 50)  # Print many newlines to make the output more visible
+    print("*" * 50)
+    print("*" * 5 + " HOTKEY 2 WAS PRESSED! " + "*" * 5)
+    print("*" * 50)
+    print("\n" * 5)
+    # Force flush the output to ensure it's displayed immediately
+    import sys
+    sys.stdout.flush()
 
 def main():
     """Main function to demonstrate the WinHotkeys library."""
