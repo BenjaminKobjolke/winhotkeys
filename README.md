@@ -17,7 +17,7 @@ A Python library for registering global hotkeys in Windows applications with sup
 pip install .
 
 # Or directly from GitHub (once published)
-# pip install git+https://github.com/yourusername/winhotkeys.git
+# pip install git+https://github.com/BenjaminKobjolke/winhotkeys.git
 ```
 
 ## Requirements
